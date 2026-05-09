@@ -1,0 +1,16 @@
+{
+  "mode": "demo",
+  "n_clips": 50,
+  "weakness_1_temporal_flickering": {
+    "FWE_mean": 0.11854837487335373,
+    "FWE_std": 0.021892869595190646,
+    "frame_diff_variance": 0.003725510928760631,
+    "interpretation": "FWE > 0.08 indicates noticeable inter-frame inconsistency."
+  },
+  "weakness_2_prompt_misalignment": {
+    "CLIP_SIM_static_mean": 0.2943414893932107,
+    "CLIP_SIM_dynamic_mean": 0.24072300148035844,
+    "pearson_r_clipsim_vs_motion": -0.8555523835960441,
+    "interpretation": "Negative correlation confirms prompt fidelity drops as motion magnitude increases."
+  }
+}

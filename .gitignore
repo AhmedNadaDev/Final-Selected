@@ -1,0 +1,59 @@
+# ── Python ────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.coverage
+.coverage.*
+.tox/
+.venv/
+venv/
+env/
+
+# ── Node / Frontend ───────────────────────────────────────
+node_modules/
+dist/
+.vite/
+.parcel-cache/
+*.log
+npm-debug.log*
+
+# ── ML / Models ───────────────────────────────────────────
+*.ckpt
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.onnx
+~/.cache/huggingface/
+hub/
+diffusers_cache/
+
+# ── Generated outputs ─────────────────────────────────────
+backend/outputs/
+outputs/
+*.mp4
+*.mp3
+*.wav
+!evaluation/results/*.png
+!evaluation/results/*.json
+
+# ── IDE / OS ──────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ── Env / Secrets ─────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Docker volumes ────────────────────────────────────────
+model_cache/

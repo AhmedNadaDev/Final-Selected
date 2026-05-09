@@ -1,0 +1,47 @@
+# ── Web framework ─────────────────────────────────────────────
+fastapi==0.110.0
+uvicorn[standard]==0.29.0
+python-multipart==0.0.9
+websockets==12.0
+aiofiles==23.2.1
+
+# ── Diffusion / ML ────────────────────────────────────────────
+torch==2.2.1
+torchvision==0.17.1
+diffusers==0.27.2
+transformers==4.39.3
+accelerate==0.28.0
+safetensors==0.4.2
+einops==0.7.0
+omegaconf==2.3.0
+
+# ── Video / Image ─────────────────────────────────────────────
+opencv-python-headless==4.9.0.80
+imageio==2.34.0
+imageio-ffmpeg==0.4.9
+Pillow==10.2.0
+
+# ── Math / Metrics ────────────────────────────────────────────
+numpy==1.26.4
+scipy==1.12.0
+scikit-image==0.22.0
+lpips==0.1.4
+torchmetrics==1.3.2
+matplotlib==3.8.4
+
+# ── Bonus: Text-to-Audio (Neural TTS) ─────────────────────────
+edge-tts==6.1.10
+pydub==0.25.1
+
+# ── Utilities ─────────────────────────────────────────────────
+pydantic==2.6.4
+python-dotenv==1.0.1
+loguru==0.7.2
+rich==13.7.1
+
+# ── Optional: CLIP (used by reranker + CLIP-SIM metric) ───────
+# Install separately because the OpenAI repo install can be flaky in Docker:
+#   pip install git+https://github.com/openai/CLIP.git
+# The system gracefully falls back if CLIP is unavailable.
+ftfy==6.2.0
+regex==2024.4.16

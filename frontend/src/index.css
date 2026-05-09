@@ -1,0 +1,165 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; }
+
+  :root {
+    --plasma: #7c3aed;
+    --neon:   #a78bfa;
+    --arc:    #38bdf8;
+    --flare:  #fb7185;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    @apply bg-void text-text font-body antialiased;
+    overflow-x: hidden;
+  }
+
+  ::selection { background: rgba(124,58,237,0.35); color: #fff; }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: #0d0d1a; }
+  ::-webkit-scrollbar-thumb { background: #3a3a55; border-radius: 2px; }
+  ::-webkit-scrollbar-thumb:hover { background: #7c3aed; }
+}
+
+@layer components {
+  /* Glass card */
+  .glass {
+    background: rgba(26,26,46,0.6);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(124,58,237,0.15);
+  }
+
+  .glass-bright {
+    background: rgba(26,26,46,0.8);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(167,139,250,0.25);
+  }
+
+  /* Glow text */
+  .text-glow {
+    text-shadow: 0 0 30px rgba(124,58,237,0.6), 0 0 60px rgba(56,189,248,0.2);
+  }
+
+  .text-glow-soft {
+    text-shadow: 0 0 20px rgba(167,139,250,0.4);
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    background: linear-gradient(135deg, #a78bfa 0%, #38bdf8 50%, #fb7185 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .gradient-text-plasma {
+    background: linear-gradient(135deg, #c4b5fd 0%, #7c3aed 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  /* Buttons */
+  .btn-plasma {
+    @apply relative overflow-hidden font-display font-semibold tracking-wide;
+    background: linear-gradient(135deg, #7c3aed, #5b21b6);
+    border: 1px solid rgba(167,139,250,0.4);
+    transition: all 0.3s cubic-bezier(0.16,1,0.3,1);
+  }
+  .btn-plasma::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(167,139,250,0.3), transparent);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .btn-plasma:hover::before { opacity: 1; }
+  .btn-plasma:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 32px rgba(124,58,237,0.5), 0 0 0 1px rgba(167,139,250,0.3);
+  }
+  .btn-plasma:active { transform: translateY(0); }
+
+  .btn-ghost {
+    @apply font-display font-medium tracking-wide;
+    background: transparent;
+    border: 1px solid rgba(124,58,237,0.3);
+    color: #a78bfa;
+    transition: all 0.25s ease;
+  }
+  .btn-ghost:hover {
+    background: rgba(124,58,237,0.1);
+    border-color: rgba(167,139,250,0.5);
+    color: #c4b5fd;
+  }
+
+  /* Input */
+  .input-plasma {
+    @apply bg-surface border border-border text-text font-body;
+    transition: all 0.25s ease;
+    outline: none;
+  }
+  .input-plasma:focus {
+    border-color: rgba(124,58,237,0.7);
+    box-shadow: 0 0 0 3px rgba(124,58,237,0.15), inset 0 1px 3px rgba(0,0,0,0.3);
+  }
+  .input-plasma::placeholder { color: #6b6b8a; }
+
+  /* Progress bar */
+  .progress-fill {
+    background: linear-gradient(90deg, #7c3aed, #38bdf8, #7c3aed);
+    background-size: 200% 100%;
+    animation: shimmer 2s linear infinite;
+  }
+
+  /* Skeleton */
+  .skeleton {
+    background: linear-gradient(90deg, #1a1a2e 25%, #252538 50%, #1a1a2e 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s linear infinite;
+  }
+
+  /* Orb */
+  .orb {
+    border-radius: 50%;
+    filter: blur(60px);
+    pointer-events: none;
+  }
+
+  /* Grid bg */
+  .bg-grid {
+    background-image: var(--tw-gradient-stops),
+      linear-gradient(rgba(124,58,237,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(124,58,237,0.04) 1px, transparent 1px);
+    background-size: auto, 40px 40px, 40px 40px;
+  }
+}
+
+/* Noise overlay */
+.noise::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  background-size: 200px 200px;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.35;
+}
+
+/* Particle canvas */
+#particles-canvas {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
