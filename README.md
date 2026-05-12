@@ -1,6 +1,6 @@
 # NovaCine — Text-to-Video Generation System
 
-NovaCine is a **full-stack text-to-video application**: a **React** web UI talks to a **FastAPI** backend that runs a **latent diffusion** pipeline (Hugging Face **Diffusers**), optional **CLIP** reranking, and optional **neural narration** merged with **ffmpeg**. Jobs run through an **async queue** with **WebSocket** progress updates; generated MP4 files are served from the backend under `/outputs`.
+NovaCine is a **full-stack text-to-video application**: a **React** web UI talks to a **FastAPI** backend that runs a **latent diffusion** pipeline (Hugging Face **Diffusers**, **ZeroScope V2 576w**) with optional **neural narration** merged with **ffmpeg**. Jobs run through an **async queue** with **WebSocket** progress updates; generated MP4 files are served from the backend under `/outputs`.
 
 This repository also includes **research artifacts**: evaluation metrics, ablation scripts, an IEEE-style paper (`paper/`), and a standalone CLI that reuses the same generator code.
 
@@ -38,8 +38,7 @@ This repository also includes **research artifacts**: evaluation metrics, ablati
    - Each request creates a **`GenerationConfig`** and **`GenerationQueue.enqueue()`** stores the job and processes it (default **one worker**).
 
 4. **Generation**  
-   - **`VideoGenerator`** (`backend/core/generator.py`) loads **`damo-vilab/text-to-video-ms-1.7b`** via **`DiffusionPipeline.from_pretrained`**.  
-   - Sampling uses **DDIM** by default (25 steps), with optional **Enhancement A** (cosine noise schedule + latent temporal smoothing in the denoising callback) and **Enhancement B** (multiple seeds → **CLIP ViT-B/32** picks the best clip).  
+   - **`VideoGenerator`** (`backend/generator.py`) loads **`cerspense/zeroscope_v2_576w`** via **`DiffusionPipeline.from_pretrained`** (fp16 on CUDA), **`DPMSolverMultistepScheduler`**, **`enable_attention_slicing()`**, single-pass inference (default **576×320**, 25 steps).  
    - Video bytes are written under **`backend/outputs/{job_id}.mp4`**. If audio is enabled, **Edge TTS** writes MP3 and **`mux_audio_video`** produces **`{job_id}_with_audio.mp4`**.
 
 5. **Progress**  
@@ -63,8 +62,8 @@ This repository also includes **research artifacts**: evaluation metrics, ablati
                     Hugging Face Hub (first run) │  CUDA (recommended)
                     caches weights               ▼
                               ┌──────────────────────────────────────────┐
-                              │ ModelScope T2V 1.7B + Diffusers           │
-                              │ Optional: CLIP rerank, Edge TTS, ffmpeg mux │
+                              │ ZeroScope V2 576w + Diffusers           │
+                              │ Optional: Edge TTS, ffmpeg mux           │
                               └──────────────────────────────────────────┘
 ```
 
@@ -74,11 +73,11 @@ This repository also includes **research artifacts**: evaluation metrics, ablati
 
 | Component | Role | Identifier / notes |
 |-----------|------|---------------------|
-| **Text-to-video backbone** | Main diffusion model | **`damo-vilab/text-to-video-ms-1.7b`** (ModelScope / Alibaba “text-to-video-ms-1.7b”), loaded with Hugging Face **Diffusers** `DiffusionPipeline`. FP16 on CUDA when available. |
-| **Schedulers** | Denoising | **DDIMScheduler** or **DDPMScheduler** from the pipeline config; Enhancement A replaces **`alphas_cumprod`** with a **cosine** schedule (Nichol & Dhariwal style). |
-| **CLIP (optional)** | Reranking & similarity score | **OpenAI CLIP `ViT-B/32`** (`clip.load("ViT-B/32")`). Not pinned in `requirements.txt`; Docker and `setup.ps1` install from GitHub. If missing, reranking degrades gracefully (logs a warning). |
+| **Text-to-video backbone** | Main diffusion model | **`cerspense/zeroscope_v2_576w`**, loaded with Hugging Face **Diffusers** `DiffusionPipeline`. FP16 on CUDA when available. |
+| **Schedulers** | Denoising | **`DPMSolverMultistepScheduler.from_config(pipe.scheduler.config)`** after load. |
+| **Diagnostics** | Motion hint | Optional **`motion_score`** (mean absolute frame difference) in API results for debugging static output. |
 | **Neural TTS (bonus)** | Narration audio | **Microsoft Edge Neural TTS** via Python package **`edge-tts`** (calls Microsoft’s online TTS service). Requires **network access** when synthesizing. |
-| **Video / metrics** | Encoding & evaluation | **diffusers** `export_to_video`, **ffmpeg** (mux), **opencv**, **scikit-image**, **LPIPS**, optional CLIP in `evaluation/run_metrics.py`. |
+| **Video / metrics** | Encoding & evaluation | **diffusers** `export_to_video`, **ffmpeg** (mux), **opencv**, **scikit-image**, **LPIPS**; optional CLIP only in `evaluation/run_metrics.py` for research metrics. |
 
 Core Python libraries (see **`backend/requirements.txt`**): **PyTorch**, **diffusers**, **transformers**, **accelerate**, **torchvision**, **Pillow**, **loguru**, etc.
 
@@ -107,8 +106,9 @@ FinalProjectSelected/
 ├── backend/
 │   ├── main.py            # FastAPI app, CORS, static /outputs, WebSocket
 │   ├── api/routes.py      # /api/v1 REST endpoints
+│   ├── config.py          # MODEL_ID, GenerationConfig (576×320 defaults)
+│   ├── generator.py       # VideoGenerator (ZeroScope), TTS hook
 │   ├── core/
-│   │   ├── generator.py   # VideoGenerator, CLIP reranker, enhancements, TTS hook
 │   │   └── queue_manager.py
 │   └── utils/             # TTS, video mux (ffmpeg), helpers
 ├── ai-model/pipeline/     # Standalone CLI (imports backend core)
@@ -132,14 +132,13 @@ Without a GPU, the diffusion model may fail to load and the backend will use the
 ### Recommended for real video generation
 
 - **NVIDIA GPU** with a recent **CUDA** stack matching **PyTorch 2.2.x** (see project Dockerfile base: CUDA 12.1 runtime image).
-- Enough **VRAM** for **ModelScope T2V 1.7B** (plan for several GB; reduce resolution/frames if you hit OOM).
+- Enough **VRAM** for **ZeroScope V2 576w** (plan for several GB; reduce resolution/frames if you hit OOM).
 - **ffmpeg** on PATH for audio muxing (included in the **backend Docker** image; install separately on bare metal if you use TTS).
 
 ### Optional
 
-- **CLIP** (for Enhancement B and reported CLIP scores):  
-  `pip install git+https://github.com/openai/CLIP.git`  
-  (already attempted in `scripts/setup.ps1` and Dockerfile.)
+- **CLIP** (only if you run **`evaluation/run_metrics.py`** or other research scripts that compute CLIP-SIM):  
+  `pip install git+https://github.com/openai/CLIP.git`
 - **Internet** for first-time **Hugging Face** weight download and for **Edge TTS** when audio is enabled.
 
 ---
@@ -186,7 +185,7 @@ docker-compose up --build
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/api/v1/generate` | Queue a job (prompt, frames, fps, guidance, seeds, enhancement flags, optional TTS fields). |
+| POST | `/api/v1/generate` | Queue a job (prompt, frames, fps, guidance, seed, optional TTS fields). |
 | GET | `/api/v1/jobs/{job_id}` | Poll status, progress, result URLs, errors. |
 | GET | `/api/v1/jobs` | List jobs. |
 | DELETE | `/api/v1/jobs/{job_id}` | Remove a job from in-memory history. |
@@ -205,10 +204,10 @@ Full detail: **`docs/API.md`**.
 From the repo root (after backend dependencies are available):
 
 ```bash
-python ai-model/pipeline/infer.py "Your prompt here" --output out.mp4 --frames 32 --steps 25 --candidates 2
+python ai-model/pipeline/infer.py "Your prompt here" --frames 24 --steps 25 --width 576 --height 320
 ```
 
-This imports **`VideoGenerator`** from **`backend/core`** — same logic as the API.
+This imports **`VideoGenerator`** from **`backend/`** — same logic as the API.
 
 ---
 
@@ -240,7 +239,7 @@ See existing **`paper/`** and **`docs/ARCHITECTURE.md`** for methodology and dia
 | Symptom | Likely cause |
 |---------|----------------|
 | Log says **mock generator** / no real video | Pipeline failed to load (no GPU, OOM, or network issue downloading weights). Check logs from **`VideoGenerator._load_pipeline`**. |
-| **CLIP reranking** disabled | CLIP not installed or failed to import; install from GitHub per **`requirements.txt`** comment. |
+| Low **`motion_score`** in API result | Possible near-static decode; try another seed or prompt; verify CUDA pipeline loaded (not mock). |
 | **Audio** fails | **edge-tts** / network / **ffmpeg** missing on host. Docker image includes **ffmpeg**. |
 | **WebSocket** works in dev but not in custom setup | Ensure same host/port as Vite proxy or nginx **`/ws/`** location with **Upgrade** headers. |
 | Jobs disappear after restart | Expected: queue and job dict are **in-memory** only. |
@@ -251,7 +250,7 @@ See existing **`paper/`** and **`docs/ARCHITECTURE.md`** for methodology and dia
 
 NovaCine was developed for **AIE418 — Selected Topics in AI 2** (Alamein International University). It implements:
 
-- **Phase 1–2** deliverables: theme, pretrained **ModelScope T2V** backbone, mathematical write-up, weakness analysis, two enhancements (**cosine + temporal latent smoothing**, **CLIP candidate reranking**), ablations, and IEEE-style paper.
+- **Phase 1–2** deliverables: theme, diffusion **text-to-video** stack (production uses **ZeroScope V2 576w**), mathematical write-up, weakness analysis, optional research enhancements documented in **`paper/`**, ablations, and IEEE-style paper.
 - **Bonus**: neural **text-to-audio** via **Edge TTS**, muxed into the final MP4.
 
 For deeper theory (DDPM/DDIM, CFG, schedules) and result tables, see **`paper/novacine_paper.tex`** and the previous sections of this README’s research lineage.
@@ -260,4 +259,4 @@ For deeper theory (DDPM/DDIM, CFG, schedules) and result tables, see **`paper/no
 
 ## License and third-party models
 
-Respect the **license terms** of **Hugging Face** models (**`damo-vilab/text-to-video-ms-1.7b`**), **OpenAI CLIP**, **Diffusers**, and **Microsoft** speech services when using **edge-tts**. This README does not substitute those licenses.
+Respect the **license terms** of **Hugging Face** models (**`cerspense/zeroscope_v2_576w`** and any metrics/eval dependencies), **Diffusers**, optional **OpenAI CLIP** (evaluation scripts only), and **Microsoft** speech services when using **edge-tts**. This README does not substitute those licenses.

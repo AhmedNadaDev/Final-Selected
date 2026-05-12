@@ -14,17 +14,13 @@ Submit a video generation job.
 {
   "prompt": "A wolf running through a snowy forest",
   "negative_prompt": "blurry, distorted, low quality",
-  "num_frames": 32,
+  "num_frames": 24,
   "fps": 8,
-  "width": 256,
-  "height": 256,
+  "width": 576,
+  "height": 320,
   "num_inference_steps": 25,
-  "guidance_scale": 9.0,
+  "guidance_scale": 7.5,
   "seed": null,
-  "use_ddim": true,
-  "use_enhancement_a": true,
-  "use_enhancement_b": true,
-  "num_candidates": 2,
 
   "enable_audio": false,
   "audio_script": null,
@@ -67,20 +63,22 @@ Poll job status and result.
 **Result object (when completed):**
 ```json
 {
-  "job_id":          "3f7a2b1c-...",
-  "video_path":      "outputs/3f7a2b1c-..._with_audio.mp4",
-  "video_url":       "/outputs/3f7a2b1c-..._with_audio.mp4",
-  "audio_url":       "/outputs/3f7a2b1c-....mp3",
-  "num_frames":      32,
-  "fps":             8,
-  "duration_video_s": 4.0,
-  "clip_score":      0.2941,
-  "duration_s":      47.3,
-  "enhancements": {
-    "cosine_schedule": true,
-    "clip_reranking":  true,
-    "tts_audio":       true
-  }
+  "job_id":           "3f7a2b1c-...",
+  "model_id":         "cerspense/zeroscope_v2_576w",
+  "video_path":       "outputs/3f7a2b1c-..._with_audio.mp4",
+  "video_url":        "/outputs/3f7a2b1c-..._with_audio.mp4",
+  "audio_url":        "/outputs/3f7a2b1c-....mp3",
+  "num_frames":       24,
+  "fps":              8,
+  "duration_video_s": 3.0,
+  "motion_score":     12.3456,
+  "duration_s":       47.3,
+  "timing": {
+    "pipeline_load_s": 45.0,
+    "generation_s":    42.0
+  },
+  "memory_peak_mb":   8192.0,
+  "tts_audio":        true
 }
 ```
 
@@ -143,16 +141,12 @@ ws.onmessage = (event) => {
 |-----------------------|--------|---------|----------|------------------------------------------|
 | `prompt`              | string | required | 3–500   | Text description                         |
 | `negative_prompt`     | string | preset  | —        | Things to avoid                          |
-| `num_frames`          | int    | **32**  | 8–64     | Number of frames (32 ≈ 4 s at 8 fps)     |
+| `num_frames`          | int    | **24**  | 8–64     | Number of frames                         |
 | `fps`                 | int    | 8       | 4–30     | Output frames per second                 |
-| `width` / `height`    | int    | 256     | 128–512  | Spatial resolution                       |
+| `width` / `height`    | int    | **576 / 320** | 128–768 | ZeroScope native default                 |
 | `num_inference_steps` | int    | 25      | 5–100    | Denoising steps                          |
-| `guidance_scale`      | float  | 9.0     | 1–20     | CFG weight                               |
-| `seed`                | int    | random  | any      | Reproducibility                          |
-| `use_ddim`            | bool   | true    | —        | DDIM (fast) vs DDPM (stochastic)         |
-| `use_enhancement_a`   | bool   | true    | —        | Cosine schedule + temporal smoothing     |
-| `use_enhancement_b`   | bool   | true    | —        | CLIP-rerank `num_candidates` candidates  |
-| `num_candidates`      | int    | 2       | 1–4      | Candidate count for CLIP reranking       |
+| `guidance_scale`      | float  | **7.5** | 1–20     | CFG weight                               |
+| `seed`                | int    | random  | any      | Reproducibility (`torch.Generator`)      |
 
 ### Bonus — TTS narration
 | Parameter        | Type   | Default              | Description                                              |

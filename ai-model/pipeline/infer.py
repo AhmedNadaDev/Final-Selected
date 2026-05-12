@@ -16,24 +16,21 @@ except Exception:
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "backend"))
 
 import argparse
-from core.generator import VideoGenerator, GenerationConfig
+from config import GenerationConfig
+from generator import VideoGenerator
 
 
 def main():
     parser = argparse.ArgumentParser(description="NovaCine — Standalone Video Generation")
     parser.add_argument("prompt", help="Text prompt for video generation")
-    parser.add_argument("--output",     default="output.mp4")
-    parser.add_argument("--frames",     type=int,   default=16)
-    parser.add_argument("--fps",        type=int,   default=8)
-    parser.add_argument("--steps",      type=int,   default=25)
-    parser.add_argument("--cfg",        type=float, default=9.0)
-    parser.add_argument("--width",      type=int,   default=256)
-    parser.add_argument("--height",     type=int,   default=256)
-    parser.add_argument("--seed",       type=int,   default=None)
-    parser.add_argument("--no-ddim",    action="store_true")
-    parser.add_argument("--no-enh-a",   action="store_true")
-    parser.add_argument("--no-enh-b",   action="store_true")
-    parser.add_argument("--candidates", type=int, default=2)
+    parser.add_argument("--output", default="output.mp4")
+    parser.add_argument("--frames", type=int, default=24)
+    parser.add_argument("--fps", type=int, default=8)
+    parser.add_argument("--steps", type=int, default=25)
+    parser.add_argument("--cfg", type=float, default=7.5)
+    parser.add_argument("--width", type=int, default=576)
+    parser.add_argument("--height", type=int, default=320)
+    parser.add_argument("--seed", type=int, default=None)
     args = parser.parse_args()
 
     cfg = GenerationConfig(
@@ -45,10 +42,6 @@ def main():
         width=args.width,
         height=args.height,
         seed=args.seed,
-        use_ddim=not args.no_ddim,
-        use_enhancement_a=not args.no_enh_a,
-        use_enhancement_b=not args.no_enh_b,
-        num_candidates=args.candidates,
     )
 
     def progress(step, total, msg):
@@ -60,10 +53,10 @@ def main():
     gen = VideoGenerator()
     result = gen.generate(cfg, progress_callback=progress)
     print(f"\n\n✅ Done!")
-    print(f"   Video:     {result['video_path']}")
-    print(f"   Frames:    {result['num_frames']}")
-    print(f"   CLIP-SIM:  {result['clip_score']}")
-    print(f"   Time:      {result['duration_s']}s")
+    print(f"   Video:        {result['video_path']}")
+    print(f"   Frames:       {result['num_frames']}")
+    print(f"   Motion score: {result.get('motion_score')}")
+    print(f"   Time:         {result['duration_s']}s")
 
 
 if __name__ == "__main__":

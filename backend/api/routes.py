@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 from typing import Optional, List
 
-from core.generator import GenerationConfig
+from config import GenerationConfig
 
 router = APIRouter()
 
@@ -20,17 +20,13 @@ router = APIRouter()
 class GenerateRequest(BaseModel):
     prompt: str = Field(..., min_length=3, max_length=500)
     negative_prompt: str = "blurry, distorted, low quality, worst quality"
-    num_frames: int = Field(32, ge=8, le=64)
+    num_frames: int = Field(24, ge=8, le=64)
     fps: int = Field(8, ge=4, le=30)
-    width: int = Field(256, ge=128, le=512)
-    height: int = Field(256, ge=128, le=512)
+    width: int = Field(576, ge=128, le=768)
+    height: int = Field(320, ge=128, le=768)
     num_inference_steps: int = Field(25, ge=5, le=100)
-    guidance_scale: float = Field(9.0, ge=1.0, le=20.0)
+    guidance_scale: float = Field(7.5, ge=1.0, le=20.0)
     seed: Optional[int] = None
-    use_ddim: bool = True
-    use_enhancement_a: bool = True
-    use_enhancement_b: bool = True
-    num_candidates: int = Field(2, ge=1, le=4)
 
     # ── Bonus: Text-to-Audio ───────────────────────────────
     enable_audio: bool = False
@@ -93,10 +89,6 @@ async def generate_video(req: GenerateRequest, request: Request):
         num_inference_steps=req.num_inference_steps,
         guidance_scale=req.guidance_scale,
         seed=req.seed,
-        use_ddim=req.use_ddim,
-        use_enhancement_a=req.use_enhancement_a,
-        use_enhancement_b=req.use_enhancement_b,
-        num_candidates=req.num_candidates,
         enable_audio=req.enable_audio,
         audio_script=req.audio_script,
         audio_voice=req.audio_voice,

@@ -59,32 +59,18 @@ function Slider({ label, tip, value, onChange, min, max, step = 1, fmt }) {
   )
 }
 
-function Toggle({ label, tip, checked, onChange }) {
-  return (
-    <div className="flex items-center justify-between">
-      <Label tip={tip}>{label}</Label>
-      <button
-        onClick={() => onChange(!checked)}
-        className={`relative w-10 h-5 rounded-full transition-colors duration-300
-                    ${checked ? 'bg-plasma' : 'bg-border'}`}
-      >
-        <span
-          className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow
-                      transition-transform duration-300
-                      ${checked ? 'left-5' : 'left-0.5'}`}
-        />
-      </button>
-    </div>
-  )
-}
-
 export default function SettingsPanel({ settings, onChange, onReset }) {
   const [open, setOpen] = useState(false)
 
   const set = (key) => (val) => onChange({ ...settings, [key]: val })
 
-  const resolutions = ['128×128', '256×256', '320×256', '512×320']
-  const resMap = { '128×128': [128,128], '256×256': [256,256], '320×256': [320,256], '512×320': [512,320] }
+  const resolutions = ['576×320', '512×320', '320×256', '256×256']
+  const resMap = {
+    '576×320': [576, 320],
+    '512×320': [512, 320],
+    '320×256': [320, 256],
+    '256×256': [256, 256],
+  }
   const currentRes = `${settings.width}×${settings.height}`
 
   return (
@@ -116,32 +102,16 @@ export default function SettingsPanel({ settings, onChange, onReset }) {
           >
             <div className="px-5 pb-5 space-y-5 border-t border-border pt-4">
 
-              {/* Enhancements */}
-              <div className="space-y-3">
-                <div className="text-xs font-mono text-neon tracking-widest">ENHANCEMENTS</div>
-                <Toggle
-                  label="Enhancement A — Cosine + Temporal Smooth"
-                  tip="Replaces linear noise schedule with cosine. Adds inter-frame latent smoothing loss L_smooth."
-                  checked={settings.use_enhancement_a}
-                  onChange={set('use_enhancement_a')}
-                />
-                <Toggle
-                  label="Enhancement B — CLIP Reranking"
-                  tip="Generates N candidates, selects best by CLIP-ViT-B/32 text-image similarity."
-                  checked={settings.use_enhancement_b}
-                  onChange={set('use_enhancement_b')}
-                />
+              <div className="rounded-lg border border-border/60 px-3 py-2 text-xs text-subtle leading-relaxed">
+                Backend uses{' '}
+                <span className="font-mono text-neon">cerspense/zeroscope_v2_576w</span>
+                {' '}with DPMSolverMultistepScheduler at native{' '}
+                <span className="font-mono">576×320</span> by default.
               </div>
 
               {/* Sampler */}
               <div className="space-y-3">
                 <div className="text-xs font-mono text-neon tracking-widest">SAMPLER</div>
-                <Toggle
-                  label="DDIM (deterministic, faster)"
-                  tip="DDIM uses a deterministic ODE trajectory. 10–50× fewer steps vs DDPM with σ_t=0."
-                  checked={settings.use_ddim}
-                  onChange={set('use_ddim')}
-                />
                 <Slider
                   label="Inference Steps"
                   tip="Number of denoising steps. More steps = higher quality but slower."
@@ -156,13 +126,6 @@ export default function SettingsPanel({ settings, onChange, onReset }) {
                   onChange={set('guidance_scale')}
                   min={1} max={20} step={0.5}
                   fmt={v => v.toFixed(1)}
-                />
-                <Slider
-                  label="CLIP Candidates (N)"
-                  tip="Number of candidate videos generated for CLIP reranking. Only active with Enhancement B."
-                  value={settings.num_candidates}
-                  onChange={set('num_candidates')}
-                  min={1} max={4}
                 />
               </div>
 

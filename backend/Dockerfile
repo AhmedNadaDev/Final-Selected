@@ -11,9 +11,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# CLIP (optional — fall back gracefully if install fails)
+# Optional CLIP (evaluation scripts only; backend inference does not require it)
 RUN pip install --no-cache-dir git+https://github.com/openai/CLIP.git || \
-    echo "CLIP install failed — reranker / CLIP-SIM metric will be disabled"
+    echo "CLIP install failed — evaluation CLIP-SIM metrics optional"
 
 COPY . .
 

@@ -32,9 +32,8 @@ const statusLabel = {
 const STEPS = [
   'Initializing pipeline',
   'Text encoding',
-  'Denoising latents',
-  'Temporal smoothing',
-  'CLIP reranking',
+  'Denoising',
+  'Decoding frames',
   'Video encoding',
 ]
 

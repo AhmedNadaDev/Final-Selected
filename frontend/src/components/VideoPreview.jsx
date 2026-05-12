@@ -47,7 +47,10 @@ export default function VideoPreview({ result, onReset }) {
               { icon: Film,      label: 'Frames',     val: result.num_frames },
               { icon: Play,      label: 'FPS',        val: result.fps },
               { icon: Film,      label: 'Length',     val: `${result.duration_video_s ?? '—'}s` },
-              { icon: Activity,  label: 'CLIP-SIM',   val: result.clip_score?.toFixed(4) ?? '—' },
+              { icon: Activity,  label: 'Motion Δ',   val: result.motion_score?.toFixed(4) ?? '—' },
+              ...(result.clip_score != null && result.clip_score !== undefined
+                ? [{ icon: Activity, label: 'CLIP pick', val: result.clip_score?.toFixed(4) }]
+                : []),
               { icon: Zap,       label: 'Gen time',   val: `${result.duration_s}s` },
               ...(result.audio_url
                 ? [{ icon: Volume2, label: 'Audio', val: 'on' }]

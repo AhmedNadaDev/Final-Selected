@@ -39,9 +39,7 @@ python-dotenv==1.0.1
 loguru==0.7.2
 rich==13.7.1
 
-# ── Optional: CLIP (used by reranker + CLIP-SIM metric) ───────
-# Install separately because the OpenAI repo install can be flaky in Docker:
+# ── Optional: CLIP (evaluation/run_metrics.py CLIP-SIM only; not used by API inference)
 #   pip install git+https://github.com/openai/CLIP.git
-# The system gracefully falls back if CLIP is unavailable.
 ftfy==6.2.0
 regex==2024.4.16

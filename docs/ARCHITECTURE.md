@@ -95,7 +95,7 @@ POST /api/v1/generate
         │              └── export_to_video → outputs/{job_id}.mp4
         │
         ▼
- Job(status=COMPLETED, result={video_url, clip_score, ...})
+ Job(status=COMPLETED, result={video_url, motion_score, model_id, ...})
         │
         ▼
  WebSocket push → Frontend updates UI

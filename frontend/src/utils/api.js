@@ -18,18 +18,14 @@ export function createWebSocket(jobId) {
 
 export const DEFAULT_SETTINGS = {
   negative_prompt:      'blurry, distorted, low quality, watermark, worst quality',
-  // 32 frames @ 8 fps = 4 seconds (Phase-2 deliverable: clip ≥ 4s)
-  num_frames:           32,
+  // ZeroScope V2 576w native aspect; 24 frames @ 8 fps ≈ 3 s
+  num_frames:           24,
   fps:                  8,
-  width:                256,
-  height:               256,
+  width:                576,
+  height:               320,
   num_inference_steps:  25,
-  guidance_scale:       9.0,
+  guidance_scale:       7.5,
   seed:                 null,
-  use_ddim:             true,
-  use_enhancement_a:    true,
-  use_enhancement_b:    true,
-  num_candidates:       2,
 
   // Bonus: Text-to-Audio (Edge Neural TTS)
   enable_audio:         false,

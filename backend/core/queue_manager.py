@@ -11,7 +11,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 from loguru import logger
-from core.generator import VideoGenerator, GenerationConfig
+from config import GenerationConfig
+from generator import VideoGenerator
 
 
 class JobStatus(str, Enum):

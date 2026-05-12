@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 from loguru import logger
 import os
 
-from core.generator import VideoGenerator
+from generator import VideoGenerator
 from core.queue_manager import GenerationQueue
 from api.routes import router
 
