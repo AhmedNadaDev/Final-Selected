@@ -28,6 +28,105 @@ from loguru import logger
 from PIL import Image
 
 
+def _frame_to_rgb_uint8(
+    frame: np.ndarray | Image.Image,
+    *,
+    target_h: int,
+    target_w: int,
+) -> np.ndarray:
+    """
+    Convert a diffusion / PIL frame to HWC uint8 RGB for PIL Video & CLIP.
+
+    Handles float [0,1], [-1,1], CHW tensors, NaN/Inf, and degenerate sizes.
+    """
+    if isinstance(frame, Image.Image):
+        arr = np.asarray(frame.convert("RGB"), dtype=np.uint8)
+    else:
+        x = np.asarray(frame)
+        if x.dtype == np.uint8 and x.ndim == 3 and x.shape[-1] >= 3:
+            arr = x[..., :3].copy()
+        else:
+            x = np.nan_to_num(x.astype(np.float64), nan=0.0, posinf=1.0, neginf=-1.0)
+            if x.ndim == 2:
+                x = np.stack([x, x, x], axis=-1)
+            elif x.ndim == 3:
+                if x.shape[-1] in (3, 4):
+                    if x.shape[-1] == 4:
+                        x = x[..., :3]
+                elif x.shape[0] in (1, 3, 4) and max(x.shape[1], x.shape[2]) > 4:
+                    if x.shape[0] == 1:
+                        x = np.repeat(x, 3, axis=0)
+                    elif x.shape[0] == 4:
+                        x = x[:3]
+                    x = np.transpose(x, (1, 2, 0))
+                else:
+                    x = np.transpose(x, (1, 2, 0)) if x.shape[0] == 3 else x
+            else:
+                x = np.squeeze(x)
+                if x.ndim != 3:
+                    x = np.zeros((target_h, target_w, 3), dtype=np.float64)
+
+            vmax, vmin = float(np.nanmax(x)), float(np.nanmin(x))
+            if vmax <= 1.0 + 1e-3 and vmin >= -1.0 - 1e-3:
+                if vmin < -1e-3:
+                    x = (x + 1.0) * 0.5
+                x = np.clip(x, 0.0, 1.0) * 255.0
+            elif vmax <= 1.0 + 1e-3 and vmin >= 0.0:
+                x = np.clip(x, 0.0, 1.0) * 255.0
+            else:
+                x = np.clip(x, 0.0, 255.0)
+            arr = np.round(x).astype(np.uint8)
+
+    if arr.ndim != 3 or arr.shape[-1] != 3:
+        arr = np.zeros((target_h, target_w, 3), dtype=np.uint8)
+
+    h, w = arr.shape[0], arr.shape[1]
+    if h < 2 or w < 2 or np.isnan(arr).any():
+        arr = np.nan_to_num(arr, nan=0)
+        pil_s = Image.fromarray(arr.astype(np.uint8), mode="RGB")
+        pil_s = pil_s.resize((max(w, 2), max(h, 2)), Image.Resampling.NEAREST)
+        arr = np.asarray(pil_s.convert("RGB"), dtype=np.uint8)
+
+    if arr.shape[0] != target_h or arr.shape[1] != target_w:
+        pil_r = Image.fromarray(arr, mode="RGB").resize(
+            (target_w, target_h), Image.Resampling.LANCZOS
+        )
+        arr = np.asarray(pil_r.convert("RGB"), dtype=np.uint8)
+
+    return arr
+
+
+def sanitize_frame_list(
+    frames: list,
+    *,
+    height: int,
+    width: int,
+) -> list[np.ndarray]:
+    """
+    Normalize every frame to HWC uint8 at (height, width).
+    Preserves frame count: bad frames are replaced with the last good frame or gray.
+    """
+    gray = np.full((height, width, 3), 128, dtype=np.uint8)
+    if not frames:
+        return [gray.copy()]
+
+    out: list[np.ndarray] = []
+    last_good = gray.copy()
+    for f in frames:
+        try:
+            rgb = _frame_to_rgb_uint8(f, target_h=height, target_w=width)
+            if rgb.size == 0 or not np.isfinite(rgb).all():
+                logger.warning("Non-finite frame repaired using fallback")
+                rgb = last_good.copy()
+            out.append(rgb)
+            last_good = rgb.copy()
+        except Exception as e:
+            logger.warning(f"Frame sanitize repair: {e}")
+            out.append(last_good.copy())
+
+    return out
+
+
 # ──────────────────────────────────────────────
 # Configuration dataclass
 # ──────────────────────────────────────────────
@@ -86,7 +185,14 @@ class CLIPReranker:
         except Exception as e:
             logger.warning(f"CLIP unavailable — reranking disabled ({e})")
 
-    def score(self, frames: list[np.ndarray], prompt: str) -> float:
+    def score(
+        self,
+        frames: list[np.ndarray],
+        prompt: str,
+        *,
+        target_h: int = 256,
+        target_w: int = 256,
+    ) -> float:
         """Mean CLIP similarity sampled at 25/50/75% of the sequence."""
         self._lazy_load()
         if self._model is None or not frames:
@@ -103,7 +209,8 @@ class CLIPReranker:
                 txt_feat = F.normalize(self._model.encode_text(text_tokens), dim=-1)
                 sims = []
                 for i in sample_idx:
-                    img = Image.fromarray(frames[i]).convert("RGB")
+                    rgb = _frame_to_rgb_uint8(frames[i], target_h=target_h, target_w=target_w)
+                    img = Image.fromarray(rgb, mode="RGB")
                     img_tensor = self._preprocess(img).unsqueeze(0).to(self.device)
                     img_feat = F.normalize(self._model.encode_image(img_tensor), dim=-1)
                     sims.append((img_feat * txt_feat).sum().item())
@@ -112,8 +219,17 @@ class CLIPReranker:
             logger.warning(f"CLIP scoring failed: {e}")
             return 0.0
 
-    def select_best(self, candidates: list[list[np.ndarray]], prompt: str) -> list[np.ndarray]:
-        scores = [self.score(c, prompt) for c in candidates]
+    def select_best(
+        self,
+        candidates: list[list[np.ndarray]],
+        prompt: str,
+        *,
+        target_h: int = 256,
+        target_w: int = 256,
+    ) -> list[np.ndarray]:
+        scores = [
+            self.score(c, prompt, target_h=target_h, target_w=target_w) for c in candidates
+        ]
         best_idx = int(np.argmax(scores)) if scores else 0
         logger.info(f"CLIP reranking scores: {[f'{s:.4f}' for s in scores]} — selected [{best_idx}]")
         return candidates[best_idx]
@@ -273,7 +389,9 @@ class VideoGenerator:
             _cb(0, cfg.num_inference_steps, f"Generating candidate {run + 1}/{n_runs}...")
 
             if self.pipe is None:
-                frames = self._mock_generate(cfg)
+                frames = sanitize_frame_list(
+                    self._mock_generate(cfg), height=cfg.height, width=cfg.width
+                )
             else:
                 scheduler = self._get_scheduler(cfg.use_ddim, cfg.use_enhancement_a)
                 self.pipe.scheduler = scheduler
@@ -282,6 +400,8 @@ class VideoGenerator:
                     if lat.dim() >= 5 and lat.shape[2] > 1:
                         smooth_grad = lat[:, :, 1:] - lat[:, :, :-1]
                         lat[:, :, 1:] -= cfg.temporal_smoothing_lambda * smooth_grad
+                    # Stop NaN/Inf from corrupting the VAE decode (callback runs every step).
+                    lat.copy_(torch.nan_to_num(lat, nan=0.0, posinf=1e4, neginf=-1e4))
 
                 def step_callback_new(pipe, step_idx, timestep, callback_kwargs):
                     _cb(
@@ -328,7 +448,8 @@ class VideoGenerator:
 
                 with autocast_ctx:
                     result = self.pipe(**pipe_kwargs)
-                frames = [np.array(f) for f in result.frames[0]]
+                raw = [np.array(f) for f in result.frames[0]]
+                frames = sanitize_frame_list(raw, height=cfg.height, width=cfg.width)
 
             candidates.append(frames)
 
@@ -336,15 +457,24 @@ class VideoGenerator:
 
         # Enhancement B: CLIP reranking
         if cfg.use_enhancement_b and len(candidates) > 1:
-            best_frames = self.clip_reranker.select_best(candidates, cfg.prompt)
+            best_frames = self.clip_reranker.select_best(
+                candidates,
+                cfg.prompt,
+                target_h=cfg.height,
+                target_w=cfg.width,
+            )
         else:
             best_frames = candidates[0]
+
+        best_frames = sanitize_frame_list(
+            best_frames, height=cfg.height, width=cfg.width
+        )
 
         # Save video (silent track)
         _cb(cfg.num_inference_steps, cfg.num_inference_steps, "Encoding video...")
         os.makedirs("outputs", exist_ok=True)
         video_path = f"outputs/{cfg.job_id}.mp4"
-        pil_frames = [Image.fromarray(f) for f in best_frames]
+        pil_frames = [Image.fromarray(f, mode="RGB") for f in best_frames]
         export_to_video(pil_frames, video_path, fps=cfg.fps)
 
         # ── Bonus: Text-to-Audio narration (muxed with ffmpeg) ──
@@ -380,7 +510,12 @@ class VideoGenerator:
             else:
                 logger.warning("Audio requested but TTS engine unavailable")
 
-        clip_score = self.clip_reranker.score(best_frames, cfg.prompt)
+        clip_score = self.clip_reranker.score(
+            best_frames,
+            cfg.prompt,
+            target_h=cfg.height,
+            target_w=cfg.width,
+        )
         duration = round(time.time() - start, 2)
 
         logger.info(
